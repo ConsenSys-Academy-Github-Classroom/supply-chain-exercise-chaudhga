@@ -104,25 +104,15 @@ contract SupplyChain {
     // 3. Emit the appropriate event
     // 4. return true
 
-    Item memory item;
-    item.name = _name;
-    item.price = _price;
-    item.sku = skuCount;
-    item.state = State.ForSale;
-    item.seller = payable(msg.sender);
-    item.buyer = payable(address(0));
-
-    items[skuCount] = item;
-
     // hint:
-    // items[skuCount] = Item({
-    //  name: _name, 
-    //  sku: skuCount, 
-    //  price: _price, 
-    //  state: State.ForSale, 
-    //  seller: payable(msg.sender), 
-    //  buyer: payable(address(0))
-    // });
+    items[skuCount] = Item({
+     name: _name, 
+     sku: skuCount, 
+     price: _price, 
+     state: State.ForSale, 
+     seller: payable(msg.sender), 
+     buyer: payable(address(0))
+    });
     
     skuCount = skuCount + 1;
     emit LogForSale(skuCount);
@@ -140,11 +130,15 @@ contract SupplyChain {
   //    - check the value after the function is called to make 
   //      sure the buyer is refunded any excess ether sent. 
   // 6. call the event associated with this function!
-  function buyItem(uint sku) public payable forSale(sku) checkValue(sku) paidEnough(items[sku].price) {
-    Item memory item = items[sku];
-    item.seller.transfer(msg.value);
-    item.buyer = payable(msg.sender);
-    item.state = State.Sold;
+  function buyItem(uint sku) public payable 
+    forSale(sku) 
+    checkValue(sku) 
+    paidEnough(items[sku].price) {
+    //items[sku].seller.transfer(msg.value);
+    bool sendValue = items[sku].seller.send(items[sku].price);
+    require(sendValue, "Failed to send!");
+    items[sku].buyer = payable(msg.sender);
+    items[sku].state = State.Sold;
     emit LogSold(sku);
   }
 
@@ -154,8 +148,7 @@ contract SupplyChain {
   // 2. Change the state of the item to shipped. 
   // 3. call the event associated with this function!
   function shipItem(uint sku) public sold(sku) verifyCaller(items[sku].seller) {
-    Item memory item = items[sku];
-    item.state = State.Shipped;
+    items[sku].state = State.Shipped;
     emit LogShipped(sku);
   }
 
@@ -165,8 +158,7 @@ contract SupplyChain {
   // 2. Change the state of the item to received. 
   // 3. Call the event associated with this function!
   function receiveItem(uint sku) public shipped(sku) verifyCaller(items[sku].buyer) {
-    Item memory item = items[sku];
-    item.state = State.Received;
+    items[sku].state = State.Received;
     emit LogReceived(sku);
   }
 
